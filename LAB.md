@@ -2,7 +2,7 @@
 
 ## The situation
 
-Today is your pairing session with Inês, the senior engineer who will be your mentor. She shares her screen and says, a little embarrassed:
+Today is your pairing session with Inês, the senior engineer who will be your mentor. Inês shares the screen and says, a little embarrassed:
 
 > *"Last Thursday, Marco and I both ran `terraform apply` from our laptops, on the same afternoon. Each of us had a `terraform.tfstate` file on our own disk. Mine said the cache time was 300 seconds. His said it had been changed. We overwrote each other's work and neither of us noticed until the staging settings were wrong. Let's make sure it can never happen again. I'll ask questions, you drive."*
 
@@ -37,7 +37,7 @@ ls -l terraform
 python3 -m json.tool terraform/terraform.tfstate | head -40
 ```
 
-> **Predict** Inês asks: *"If I copy this folder to Marco's laptop and he runs `terraform plan`, what does his Terraform believe exists?"* And if he has no state file at all? Write both answers before you run anything.
+> **Predict** Inês asks: *"If I copy this folder to Marco's laptop and Marco runs `terraform plan`, what does Terraform on that laptop believe exists?"* And if he has no state file at all? Write both answers before you run anything.
 
 > **Think** The `.gitignore` already excludes `*.tfstate*`. Why must a state file never be committed to git, even in a private repository? (Open it and search for the word `value`.)
 
