@@ -42,6 +42,10 @@ The thing under management is deliberately tiny: three Clippy settings in the AW
 
 **Time:** 75-90 min | **Cost:** free (S3 pennies) | **You need:** an AWS administrator user (the IAM lab), the AWS CLI v2, Terraform 1.10 or newer, git and a terminal
 
+> [!NOTE]
+> **Note** You share one AWS account with your whole class. Everything this lab creates carries your **handle** (your IAM user name in lowercase; `.lab/handle.sh` prints it) in its name or in a `student` tag, and the checks and the teardown only look at yours. The provided `data "external"` block in `terraform/main.tf` reads it for you.
+
+
 <p align="center"><img src="assets/divider.svg" alt="" width="100%"></p>
 
 ## Part 0 - Warm-up: the state on your own disk
@@ -53,7 +57,7 @@ terraform -chdir=terraform init
 terraform -chdir=terraform apply
 ```
 
-It creates three parameters under `/clippy/staging/`. Now look at what Terraform wrote next to your code:
+It creates three parameters under `/clippy/<your handle>/staging/`. Now look at what Terraform wrote next to your code:
 
 ```bash
 ls -l terraform
@@ -75,10 +79,10 @@ python3 -m json.tool terraform/terraform.tfstate | head -40
 The state needs a home that is shared, **versioned** (so a bad write can be undone), **encrypted** and **private**. Create a bucket named exactly:
 
 ```text
-clippy-tfstate-<your 12-digit account id>
+clippy-tfstate-<your handle>-<your 12-digit account id>
 ```
 
-in `us-east-1`. Find your account id with `aws sts get-caller-identity --query Account --output text`. Do it with the AWS CLI (`aws s3api ...`, use `--help`), and set:
+in `us-east-1`. Your **handle** is your IAM user name in lowercase (`.lab/handle.sh` prints it) and your account id comes from `aws sts get-caller-identity --query Account --output text`: the whole class shares one AWS account, so the handle keeps your bucket and your parameters apart from your classmates'. To get the full name: `echo clippy-tfstate-$(.lab/handle.sh)-$(aws sts get-caller-identity --query Account --output text)`. Do it with the AWS CLI (`aws s3api ...`, use `--help`), and set:
 
 - **versioning** enabled;
 - **default encryption** on (SSE-S3 is enough);
@@ -107,7 +111,7 @@ terraform -chdir=terraform init -migrate-state
 Answer **yes** to copy the state. Check the result:
 
 ```bash
-aws s3api list-object-versions --bucket clippy-tfstate-<account> --query 'Versions[].[Key,VersionId,LastModified]' --output table
+aws s3api list-object-versions --bucket clippy-tfstate-<handle>-<account> --query 'Versions[].[Key,VersionId,LastModified]' --output table
 terraform -chdir=terraform state list
 ```
 
@@ -132,7 +136,7 @@ In **terminal B**, run the same command.
 While A is still waiting, look in S3:
 
 ```bash
-aws s3 ls s3://clippy-tfstate-<account>/ --recursive
+aws s3 ls s3://clippy-tfstate-<handle>-<account>/ --recursive
 ```
 
 You will see a second object next to the state, ending in `.tflock`. That object **is** the lock. Now answer `no` in terminal A and watch the lock file disappear.
@@ -144,7 +148,7 @@ You will see a second object next to the state, ending in `.tflock`. That object
 
 ## Part 4 - The bad apply, and the way back
 
-Marco has a new idea: caching for three seconds "will make it faster". In `terraform/main.tf` change `cache_ttl` from `"300"` to `"3"`, run `terraform apply`, and confirm with `aws ssm get-parameter --name /clippy/staging/cache_ttl`. The real world is now wrong, and so is the latest state. Inês asks you to put things back, **starting from the state**.
+Marco has a new idea: caching for three seconds "will make it faster". In `terraform/main.tf` change `cache_ttl` from `"300"` to `"3"`, run `terraform apply`, and confirm with `aws ssm get-parameter --name /clippy/<your handle>/staging/cache_ttl`. The real world is now wrong, and so is the latest state. Inês asks you to put things back, **starting from the state**.
 
 1. List the versions of the state object (`aws s3api list-object-versions`, as before). Which one is the state from **before** the bad apply?
 2. Download that version: `aws s3api get-object --bucket ... --key ... --version-id <id> old.tfstate`.
@@ -171,7 +175,7 @@ Revert the code to `"300"`, run `terraform plan`, read it carefully and then `te
 It checks your code (`fmt`, a literal backend with native locking and encryption, no state or keys committed), the real bucket (versioning, encryption, public access block), the state versions (at least three: the migration, the bad apply and your rollback), that no stale lock is left, and that `terraform plan` finds nothing to change. Fix what is red and run it again until it ends with **ALL CHECKS PASSED**.
 
 > [!TIP]
-> **Stuck?** `terraform init` complains about the backend: the bucket name is wrong or the account id is not yours. Fewer than three versions: you skipped the bad apply, or the restore did not create a new version. A stale lock: `terraform force-unlock <ID>`, only when nobody is applying. `plan` is not clean: the code says one value, the real parameter another; apply once more.
+> **Stuck?** `terraform init` complains about the backend: the bucket name is wrong, or the handle or the account id in it is not yours. Fewer than three versions: you skipped the bad apply, or the restore did not create a new version. A stale lock: `terraform force-unlock <ID>`, only when nobody is applying. `plan` is not clean: the code says one value, the real parameter another; apply once more.
 
 <p align="center"><img src="assets/divider.svg" alt="" width="100%"></p>
 

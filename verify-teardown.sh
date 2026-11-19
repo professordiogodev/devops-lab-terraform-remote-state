@@ -5,9 +5,11 @@ ACCOUNT=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
 echo "Checking account $ACCOUNT"
 pass=0; failn=0
 check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then echo "PASS  $d"; pass=$((pass+1)); else echo "FAIL  $d"; failn=$((failn+1)); fi; }
-check "no parameters under /clippy/staging" bash -c "[ -z \"\$(aws ssm get-parameters-by-path --path /clippy/staging --query 'Parameters[].Name' --output text)\" ]"
-check "the state bucket clippy-tfstate-$ACCOUNT is gone" bash -c "! aws s3api head-bucket --bucket clippy-tfstate-$ACCOUNT"
-check "no .terraform/ directory or state file left in terraform/" bash -c "! ls terraform/.terraform terraform/terraform.tfstate >/dev/null 2>&1"
+STUDENT=$(bash "$(dirname "$0")/.lab/handle.sh") || exit 1
+echo "Your handle: $STUDENT"
+check "no parameters under /clippy/$STUDENT/staging" bash -c "[ -z \"\$(aws ssm get-parameters-by-path --path /clippy/$STUDENT/staging --query 'Parameters[].Name' --output text)\" ]"
+check "the state bucket clippy-tfstate-$STUDENT-$ACCOUNT is gone" bash -c "! aws s3api head-bucket --bucket clippy-tfstate-$STUDENT-$ACCOUNT"
+check "no .terraform/ directory or state file left in terraform/" bash -c "[ ! -e terraform/.terraform ] && [ ! -e terraform/terraform.tfstate ]"
 echo
 if [ "$failn" -eq 0 ]; then echo "TEARDOWN VERIFIED ($pass/$pass) in account $ACCOUNT"; else echo "NOT CLEAN: $failn leftover(s). Remove them and run this again."; fi
 exit "$failn"

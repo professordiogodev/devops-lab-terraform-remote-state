@@ -3,7 +3,9 @@ import json, os, re, subprocess, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 os.chdir(ROOT)
 ACCOUNT = sys.argv[1]
-B = "clippy-tfstate-" + ACCOUNT
+STUDENT = subprocess.run(["bash", os.path.join(ROOT, ".lab", "handle.sh")], capture_output=True, text=True).stdout.strip()
+print("Your handle (from your IAM user name): " + STUDENT)
+B = "clippy-tfstate-%s-%s" % (STUDENT, ACCOUNT)
 passed = failed = 0
 
 
@@ -64,7 +66,7 @@ check("the remote state tracks the three parameters", rc == 0 and out.count("aws
 want = {"max_url_length": "2048", "code_length": "6", "cache_ttl": "300"}
 got = {}
 for k in want:
-    p = aws("ssm", "get-parameter", "--name", "/clippy/staging/" + k)
+    p = aws("ssm", "get-parameter", "--name", "/clippy/%s/staging/" % STUDENT + k)
     got[k] = (p or {}).get("Parameter", {}).get("Value")
 check("the three real parameters hold the values in the code (the bad apply is undone)", got == want, "found %s" % got)
 rc, out = sh("terraform -chdir=terraform plan -detailed-exitcode -input=false -no-color")

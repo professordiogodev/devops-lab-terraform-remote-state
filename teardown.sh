@@ -3,13 +3,14 @@
 set -u
 cd "$(dirname "$0")"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) || { echo "No working AWS credentials." >&2; exit 1; }
-B="clippy-tfstate-$ACCOUNT"
+STUDENT=$(bash "$(dirname "$0")/.lab/handle.sh") || exit 1
+B="clippy-tfstate-$STUDENT-$ACCOUNT"
 if [ -d terraform/.terraform ]; then
   echo "terraform destroy (the state is still in the bucket, so Terraform knows what to delete)..."
   terraform -chdir=terraform destroy -auto-approve -input=false || true
 fi
 # parameters created by hand or left behind
-for p in $(aws ssm get-parameters-by-path --path /clippy/staging --query 'Parameters[].Name' --output text 2>/dev/null); do aws ssm delete-parameter --name "$p" && echo "deleted $p"; done
+for p in $(aws ssm get-parameters-by-path --path /clippy/$STUDENT/staging --query 'Parameters[].Name' --output text 2>/dev/null); do aws ssm delete-parameter --name "$p" && echo "deleted $p"; done
 if aws s3api head-bucket --bucket "$B" >/dev/null 2>&1; then
   echo "Emptying and deleting s3://$B (every version)..."
   python3 - "$B" <<'PY'
